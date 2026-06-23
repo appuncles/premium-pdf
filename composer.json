@@ -1,0 +1,27 @@
+{
+  "name": "appuncles/premium-pdf",
+  "description": "Full Tailwind supported premium PDF generator for Laravel using direct Puppeteer and Chrome.",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "AppUncles\\PremiumPdf\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "AppUncles\\PremiumPdf\\PremiumPdfServiceProvider"
+      ],
+      "aliases": {
+        "PremiumPdf": "AppUncles\\PremiumPdf\\Facades\\PremiumPdf"
+      }
+    }
+  },
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^10.0|^11.0|^12.0|^13.0"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

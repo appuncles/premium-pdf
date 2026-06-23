@@ -1,0 +1,10 @@
+{
+  "name": "@appuncles/premium-pdf-renderer",
+  "version": "1.0.0",
+  "description": "Node renderer for AppUncles Premium PDF",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "puppeteer": "^25.1.0"
+  }
+}
