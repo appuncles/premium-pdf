@@ -9,15 +9,25 @@ use RuntimeException;
 class PdfBuilder
 {
     protected ?string $url = null;
+
     protected ?string $html = null;
+
     protected string $name = 'document.pdf';
+
     protected string $format;
+
     protected bool $landscape;
+
     protected bool $printBackground;
+
     protected bool $preferCssPageSize;
+
     protected string $mediaType;
+
     protected string $waitUntil;
+
     protected int $timeout;
+
     protected array $margin;
 
     public function __construct()
@@ -29,7 +39,12 @@ class PdfBuilder
         $this->mediaType = config('premium-pdf.media_type', 'screen');
         $this->waitUntil = config('premium-pdf.wait_until', 'networkidle0');
         $this->timeout = (int) config('premium-pdf.timeout', 120000);
-        $this->margin = config('premium-pdf.margin');
+        $this->margin = config('premium-pdf.margin', [
+            'top' => '10mm',
+            'right' => '10mm',
+            'bottom' => '10mm',
+            'left' => '10mm',
+        ]);
     }
 
     public function url(string $url): self
@@ -96,6 +111,27 @@ class PdfBuilder
         return $this;
     }
 
+    public function mediaType(string $type): self
+    {
+        $this->mediaType = $type;
+
+        return $this;
+    }
+
+    public function timeout(int $milliseconds): self
+    {
+        $this->timeout = $milliseconds;
+
+        return $this;
+    }
+
+    public function waitUntil(string $value): self
+    {
+        $this->waitUntil = $value;
+
+        return $this;
+    }
+
     public function output(): string
     {
         $paths = $this->preparePaths();
@@ -112,7 +148,7 @@ class PdfBuilder
                 'margin' => $this->margin,
             ],
             'browser' => [
-                'executablePath' => config('premium-pdf.chrome_path'),
+                'executablePath' => config('premium-pdf.browser_path'),
                 'args' => config('premium-pdf.browser_args', []),
             ],
             'page' => [
@@ -122,7 +158,10 @@ class PdfBuilder
             ],
         ];
 
-        file_put_contents($paths['json'], json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents(
+            $paths['json'],
+            json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
 
         $this->runRenderer($paths['json']);
 
@@ -196,7 +235,11 @@ class PdfBuilder
             throw new RuntimeException('Premium PDF renderer script not found: '.$script);
         }
 
-        $command = [$node, $script, $jsonPath];
+        $command = [
+            $node,
+            $script,
+            $jsonPath,
+        ];
 
         $descriptorSpec = [
             0 => ['pipe', 'r'],
@@ -221,7 +264,9 @@ class PdfBuilder
         $exitCode = proc_close($process);
 
         if ($exitCode !== 0) {
-            throw new RuntimeException("Premium PDF renderer failed.\n\nSTDOUT:\n{$stdout}\n\nSTDERR:\n{$stderr}");
+            throw new RuntimeException(
+                "Premium PDF renderer failed.\n\nSTDOUT:\n{$stdout}\n\nSTDERR:\n{$stderr}"
+            );
         }
     }
 

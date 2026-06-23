@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import puppeteer from "puppeteer";
 
 function fail(message, error = null) {
   console.error(message);
@@ -11,6 +10,112 @@ function fail(message, error = null) {
   }
 
   process.exit(1);
+}
+
+async function loadPuppeteer() {
+  try {
+    const module = await import("puppeteer-core");
+
+    return {
+      puppeteer: module.default,
+      isCore: true,
+    };
+  } catch (coreError) {
+    try {
+      const module = await import("puppeteer");
+
+      return {
+        puppeteer: module.default,
+        isCore: false,
+      };
+    } catch (fullError) {
+      fail(
+        "Neither puppeteer-core nor puppeteer is installed. Run: npm install puppeteer-core OR php artisan premium-pdf:install --npm",
+        fullError,
+      );
+    }
+  }
+}
+
+function normalizePath(customPath = null) {
+  if (!customPath) {
+    return null;
+  }
+
+  return String(customPath)
+    .replace(/^["']|["']$/g, "")
+    .trim();
+}
+
+function browserCandidates() {
+  const platform = process.platform;
+
+  if (platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA || "";
+
+    return [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      localAppData
+        ? path.join(localAppData, "Google\\Chrome\\Application\\chrome.exe")
+        : null,
+
+      "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+      "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      localAppData
+        ? path.join(localAppData, "Microsoft\\Edge\\Application\\msedge.exe")
+        : null,
+
+      "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+      "C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+      localAppData
+        ? path.join(
+            localAppData,
+            "BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+          )
+        : null,
+
+      "C:\\Program Files\\Chromium\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Chromium\\Application\\chrome.exe",
+    ].filter(Boolean);
+  }
+
+  if (platform === "darwin") {
+    return [
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+      "/Applications/Chromium.app/Contents/MacOS/Chromium",
+      "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    ];
+  }
+
+  return [
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/snap/bin/chromium",
+    "/usr/bin/microsoft-edge",
+    "/usr/bin/microsoft-edge-stable",
+    "/usr/bin/brave-browser",
+    "/usr/bin/brave-browser-stable",
+  ];
+}
+
+function findBrowserExecutable(customPath = null) {
+  const normalizedCustomPath = normalizePath(customPath);
+
+  if (normalizedCustomPath && fs.existsSync(normalizedCustomPath)) {
+    return normalizedCustomPath;
+  }
+
+  for (const candidate of browserCandidates()) {
+    if (candidate && fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 const jsonPath = process.argv[2];
@@ -45,13 +150,33 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
+const { puppeteer, isCore } = await loadPuppeteer();
+
+const executablePath = findBrowserExecutable(payload.browser?.executablePath);
+
 const browserOptions = {
-  headless: "new",
+  headless: true,
   args: payload.browser?.args || [],
 };
 
-if (payload.browser?.executablePath) {
-  browserOptions.executablePath = payload.browser.executablePath;
+if (executablePath) {
+  browserOptions.executablePath = executablePath;
+} else if (isCore) {
+  fail(
+    [
+      "No Chromium-based browser found.",
+      "",
+      "Install Google Chrome, Microsoft Edge, Chromium, or Brave Browser.",
+      "",
+      "Or set browser path in .env:",
+      'PREMIUM_PDF_BROWSER_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe"',
+      'PREMIUM_PDF_BROWSER_PATH="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"',
+      "PREMIUM_PDF_BROWSER_PATH=/usr/bin/google-chrome",
+      "",
+      "If no browser is installed, run:",
+      "php artisan premium-pdf:install --browser",
+    ].join("\n"),
+  );
 }
 
 let browser;
