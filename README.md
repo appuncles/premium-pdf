@@ -2,7 +2,7 @@
 
 Full Tailwind supported premium PDF generator for Laravel.
 
-AppUncles Premium PDF gives Laravel developers a DomPDF-like API, but instead of old CSS rendering, it uses real Chrome through Puppeteer. Because of that, modern CSS, Tailwind CSS, flexbox, grid, gradients, shadows, custom fonts, images, and premium layouts render properly.
+AppUncles Premium PDF gives Laravel developers a DomPDF-like API, but instead of old CSS rendering, it uses a real Chromium-based browser through Puppeteer. Because of that, modern CSS, Tailwind CSS, flexbox, grid, gradients, shadows, custom fonts, images, and premium layouts render properly.
 
 ## Features
 
@@ -23,7 +23,10 @@ AppUncles Premium PDF gives Laravel developers a DomPDF-like API, but instead of
 - Portrait and landscape support
 - Custom margins
 - Laravel config publish support
-- Works with Laravel Vite assets using URL mode
+- Browser auto-detection
+- Works with Google Chrome, Microsoft Edge, Chromium, and Brave
+- Fast install mode using `puppeteer-core`
+- Optional bundled browser mode using full `puppeteer`
 - Built for invoices, quotations, receipts, reports, certificates, ID cards, admission forms, and business PDFs
 
 ## Requirements
@@ -32,8 +35,14 @@ AppUncles Premium PDF gives Laravel developers a DomPDF-like API, but instead of
 - Laravel 10, 11, 12, or 13
 - Node.js
 - npm
-- Puppeteer / Chrome
-- A server where Node commands are allowed
+- One Chromium-based browser
+
+Supported browsers:
+
+- Google Chrome
+- Microsoft Edge
+- Chromium
+- Brave Browser
 
 ## Important Note
 
@@ -43,7 +52,7 @@ For full Tailwind support, use URL mode:
 PremiumPdf::url(route('invoice.preview'))->download('invoice.pdf');
 ```
 
-URL mode is best because Chrome opens your actual Laravel route, so `@vite`, Tailwind, images, fonts, public assets, and CDN files load normally.
+URL mode is best because the browser opens your actual Laravel route, so `@vite`, Tailwind, images, fonts, public assets, and CDN files load normally.
 
 `loadView()` is available, but it is better for simple HTML. For premium Tailwind PDF, URL mode is recommended.
 
@@ -58,11 +67,7 @@ composer require appuncles/premium-pdf
 php artisan premium-pdf:install --npm
 ```
 
-The install command will:
-
-- Publish the config file
-- Create the temp folder
-- Install Puppeteer using npm
+This installs `puppeteer-core`. It is fast and does not download a large browser.
 
 ### Method 2: Install directly from GitHub
 
@@ -86,13 +91,45 @@ composer require appuncles/premium-pdf:dev-main
 php artisan premium-pdf:install --npm
 ```
 
-### Method 3: Install using GitHub release version
+### Method 3: No Chrome, Edge, Chromium, or Brave installed
 
-If a release tag is available, for example `v1.0.0`, use:
+Use bundled browser mode:
 
 ```bash
-composer require appuncles/premium-pdf:^1.0
+composer require appuncles/premium-pdf
+php artisan premium-pdf:install --browser
+```
+
+This installs full Puppeteer and downloads a browser. It may take time because the browser download is large.
+
+## Which Install Should I Use?
+
+### Recommended: Fast mode
+
+Use this if Chrome, Edge, Chromium, or Brave is already installed:
+
+```bash
 php artisan premium-pdf:install --npm
+```
+
+This installs:
+
+```bash
+npm install puppeteer-core
+```
+
+### Browser download mode
+
+Use this if no Chromium-based browser is installed:
+
+```bash
+php artisan premium-pdf:install --browser
+```
+
+This installs:
+
+```bash
+npm install puppeteer
 ```
 
 ## Publish Config
@@ -115,6 +152,7 @@ You can configure the package using `.env`:
 
 ```env
 PREMIUM_PDF_NODE_BINARY=node
+PREMIUM_PDF_BROWSER_PATH=
 PREMIUM_PDF_CHROME_PATH=
 PREMIUM_PDF_FORMAT=A4
 PREMIUM_PDF_LANDSCAPE=false
@@ -129,19 +167,85 @@ PREMIUM_PDF_MARGIN_BOTTOM=10mm
 PREMIUM_PDF_MARGIN_LEFT=10mm
 ```
 
-For Ubuntu server with system Chrome:
+`PREMIUM_PDF_BROWSER_PATH` is recommended.
+
+`PREMIUM_PDF_CHROME_PATH` is still supported for backward compatibility.
+
+## Browser Path Examples
+
+Usually the package will auto-detect the browser. If auto-detection fails, set the path manually.
+
+### Windows Chrome
 
 ```env
-PREMIUM_PDF_CHROME_PATH=/usr/bin/google-chrome
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe"
 ```
 
-For Chromium:
+or:
 
 ```env
-PREMIUM_PDF_CHROME_PATH=/usr/bin/chromium-browser
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
 ```
 
-If you keep `PREMIUM_PDF_CHROME_PATH` empty, Puppeteer will use its own installed browser.
+### Windows Microsoft Edge
+
+```env
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files/Microsoft/Edge/Application/msedge.exe"
+```
+
+or:
+
+```env
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+```
+
+### Windows Brave
+
+```env
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe"
+```
+
+### Linux Google Chrome
+
+```env
+PREMIUM_PDF_BROWSER_PATH=/usr/bin/google-chrome
+```
+
+or:
+
+```env
+PREMIUM_PDF_BROWSER_PATH=/usr/bin/google-chrome-stable
+```
+
+### Linux Chromium
+
+```env
+PREMIUM_PDF_BROWSER_PATH=/usr/bin/chromium
+```
+
+or:
+
+```env
+PREMIUM_PDF_BROWSER_PATH=/usr/bin/chromium-browser
+```
+
+### Linux Brave
+
+```env
+PREMIUM_PDF_BROWSER_PATH=/usr/bin/brave-browser
+```
+
+### macOS Chrome
+
+```env
+PREMIUM_PDF_BROWSER_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+```
+
+### macOS Edge
+
+```env
+PREMIUM_PDF_BROWSER_PATH="/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+```
 
 ## Basic Usage
 
@@ -427,7 +531,7 @@ PremiumPdf::url(route('invoice.preview'))
     ->download('invoice.pdf');
 ```
 
-Supported Puppeteer formats include:
+Common formats:
 
 ```txt
 Letter
@@ -470,6 +574,36 @@ Set custom margins.
 ```php
 PremiumPdf::url(route('invoice.preview'))
     ->margin('8mm', '8mm', '8mm', '8mm')
+    ->download('invoice.pdf');
+```
+
+### `mediaType()`
+
+Use screen or print CSS.
+
+```php
+PremiumPdf::url(route('invoice.preview'))
+    ->mediaType('screen')
+    ->download('invoice.pdf');
+```
+
+### `timeout()`
+
+Set timeout in milliseconds.
+
+```php
+PremiumPdf::url(route('invoice.preview'))
+    ->timeout(180000)
+    ->download('invoice.pdf');
+```
+
+### `waitUntil()`
+
+Set page loading strategy.
+
+```php
+PremiumPdf::url(route('invoice.preview'))
+    ->waitUntil('networkidle0')
     ->download('invoice.pdf');
 ```
 
@@ -587,13 +721,20 @@ If the PDF does not show CSS, open your preview route in browser first:
 /invoice/preview
 ```
 
-If the preview route looks correct but PDF does not, check Node/Puppeteer installation.
+If the preview route looks correct but PDF does not, check Node, browser path, and Puppeteer installation.
 
 ## Server Notes
 
-This package needs Node.js and Puppeteer/Chrome.
+This package needs Node.js and a Chromium-based browser.
 
-On VPS or dedicated server, install Node.js and npm, then run:
+On VPS or dedicated server, install Node.js and one of these browsers:
+
+- Google Chrome
+- Microsoft Edge
+- Chromium
+- Brave
+
+Then run:
 
 ```bash
 php artisan premium-pdf:install --npm
@@ -604,7 +745,7 @@ On shared hosting, this package may not work if:
 - Node.js is disabled
 - `proc_open()` is disabled
 - shell commands are disabled
-- Chrome cannot run
+- browser cannot run
 - server does not allow Puppeteer
 
 For shared hosting, use a VPS or a remote PDF rendering server.
@@ -617,7 +758,7 @@ Run:
 
 ```bash
 php artisan vendor:publish --tag=premium-pdf-config
-php artisan config:clear
+php artisan optimize:clear
 ```
 
 Make sure this file exists:
@@ -649,21 +790,43 @@ On Windows, usually this is enough:
 PREMIUM_PDF_NODE_BINARY=node
 ```
 
-### 3. `Cannot find package puppeteer`
+### 3. `Neither puppeteer-core nor puppeteer is installed`
 
 Run:
 
 ```bash
-npm install puppeteer
+npm install puppeteer-core
 ```
 
-Or:
+or:
 
 ```bash
 php artisan premium-pdf:install --npm
 ```
 
-### 4. PDF has no Tailwind CSS
+### 4. `No Chromium-based browser found`
+
+Install Google Chrome, Microsoft Edge, Chromium, or Brave.
+
+Or set browser path manually:
+
+```env
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe"
+```
+
+For Edge:
+
+```env
+PREMIUM_PDF_BROWSER_PATH="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+```
+
+If no browser is installed and you want Puppeteer to download one:
+
+```bash
+php artisan premium-pdf:install --browser
+```
+
+### 5. PDF has no Tailwind CSS
 
 Use URL mode:
 
@@ -679,19 +842,19 @@ npm run build
 
 Open the preview route in browser and confirm the design is correct.
 
-### 5. Blank PDF
+### 6. Blank PDF
 
 Possible reasons:
 
 - Preview route requires login
-- URL is not accessible by Chrome
+- URL is not accessible by browser
 - Vite dev server is not running
 - Assets are blocked
 - Route has an error
 
 Use signed route for private PDFs.
 
-### 6. Timeout error
+### 7. Timeout error
 
 Increase timeout:
 
@@ -707,7 +870,7 @@ Or in `.env`:
 PREMIUM_PDF_TIMEOUT=180000
 ```
 
-### 7. Chrome sandbox error on Linux
+### 8. Chrome sandbox error on Linux
 
 The package already includes common browser args:
 
@@ -718,10 +881,10 @@ The package already includes common browser args:
 '--disable-gpu',
 ```
 
-If needed, configure system Chrome path:
+If needed, configure browser path:
 
 ```env
-PREMIUM_PDF_CHROME_PATH=/usr/bin/google-chrome
+PREMIUM_PDF_BROWSER_PATH=/usr/bin/google-chrome
 ```
 
 ## Development Installation
